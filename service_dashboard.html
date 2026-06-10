@@ -1,0 +1,219 @@
+{% load i18n static %}
+{% extends 'base.html' %}
+
+{% block title %}{% trans "Dashboard" %}{% endblock %}
+
+{% block content %}
+<div class="dashboard-container">
+  <!-- ─── Sidebar ──────────────────────────────────── -->
+  <aside class="sidebar">
+    <div style="padding:0.5rem 1rem 1.5rem;">
+      <div style="display:flex;align-items:center;gap:0.7rem;margin-bottom:0.3rem;">
+        <div class="avatar" style="width:42px;height:42px;font-size:1rem;">{{ request.user.first_name|first }}</div>
+        <div>
+          <div style="font-weight:700;font-size:0.9rem;color:var(--text);">{{ request.user.get_full_name }}</div>
+          <div style="font-size:0.75rem;color:var(--text-muted);">{% trans "Servis egasi" %}</div>
+        </div>
+      </div>
+    </div>
+
+    <ul class="sidebar-menu">
+      <li><a href="{% url 'service_dashboard' %}" class="active">
+        <span class="icon">📊</span> {% trans "Dashboard" %}
+      </a></li>
+      <li><a href="{% url 'service_edit' %}">
+        <span class="icon">✏️</span> {% trans "Servisni tahrirlash" %}
+      </a></li>
+      <li><a href="{% url 'service_detail' service.id %}">
+        <span class="icon">👁</span> {% trans "Sahifani ko'rish" %}
+      </a></li>
+      <li><a href="{% url 'user_profile' %}">
+        <span class="icon">👤</span> {% trans "Profil" %}
+      </a></li>
+      <li style="margin-top:auto;">
+        <a href="{% url 'logout' %}" style="color:var(--danger) !important;">
+          <span class="icon">🚪</span> {% trans "Chiqish" %}
+        </a>
+      </li>
+    </ul>
+  </aside>
+
+  <!-- ─── Main Content ─────────────────────────────── -->
+  <main class="main-content">
+    <!-- Header -->
+    <div class="section-header mb-4">
+      <div>
+        <h1 style="font-family:'Exo 2',sans-serif;font-weight:800;font-size:1.6rem;color:var(--text);">
+          📊 {% trans "Dashboard" %}
+        </h1>
+        <p style="color:var(--text-muted);font-size:0.88rem;margin:0;">{{ service.name }}</p>
+      </div>
+      <div style="display:flex;gap:0.7rem;">
+        {% if not service.is_approved %}
+          <span class="alert-smart alert-warning py-1 px-3 mb-0" style="margin:0;">
+            ⏳ {% trans "Tasdiq kutilmoqda" %}
+          </span>
+        {% else %}
+          <span class="alert-smart alert-success py-1 px-3 mb-0" style="margin:0;">
+            ✓ {% trans "Tasdiqlangan" %}
+          </span>
+        {% endif %}
+        <a href="{% url 'service_edit' %}" class="btn-primary-smart">✏️ {% trans "Tahrirlash" %}</a>
+      </div>
+    </div>
+
+    <!-- Stats -->
+    <div class="stats-grid mb-4">
+      <div class="stat-card">
+        <div class="stat-icon red">⭐</div>
+        <div>
+          <div class="stat-value">{{ service.avg_rating }}</div>
+          <div class="stat-label">{% trans "O'rtacha reyting" %}</div>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon green">💬</div>
+        <div>
+          <div class="stat-value">{{ service.review_count }}</div>
+          <div class="stat-label">{% trans "Jami sharhlar" %}</div>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon orange">📷</div>
+        <div>
+          <div class="stat-value">{{ image_count }}/6</div>
+          <div class="stat-label">{% trans "Rasmlar" %}</div>
+        </div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon blue">❤️</div>
+        <div>
+          <div class="stat-value">{{ service.favorited_by.count }}</div>
+          <div class="stat-label">{% trans "Sevimlilarda" %}</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="row g-4">
+      <!-- Service Info -->
+      <div class="col-lg-6">
+        <div class="card-smart p-3">
+          <div class="section-header mb-3">
+            <span class="section-title">🏪 {% trans "Servis ma'lumotlari" %}</span>
+            <a href="{% url 'service_edit' %}" class="btn-outline-smart py-1 px-2" style="font-size:0.78rem;">✏️</a>
+          </div>
+
+          <div style="display:flex;flex-direction:column;gap:0.8rem;font-size:0.88rem;">
+            <div class="d-flex justify-content-between">
+              <span style="color:var(--text-muted);">📍 {% trans "Manzil" %}</span>
+              <span style="color:var(--text);font-weight:500;text-align:right;max-width:55%;">
+                {{ service.get_viloyat_display }}, {{ service.tuman }}<br>
+                <small>{{ service.address }}</small>
+              </span>
+            </div>
+            <div class="d-flex justify-content-between">
+              <span style="color:var(--text-muted);">📞 {% trans "Telefon" %}</span>
+              <span style="color:var(--text);font-weight:500;">{{ service.phone }}</span>
+            </div>
+            <div class="d-flex justify-content-between">
+              <span style="color:var(--text-muted);">⏰ {% trans "Ish vaqti" %}</span>
+              <span style="color:var(--text);font-weight:500;">
+                {% if service.is_24h %}24/7{% else %}{{ service.work_start|time:"H:i" }}–{{ service.work_end|time:"H:i" }}{% endif %}
+              </span>
+            </div>
+            <div class="d-flex justify-content-between">
+              <span style="color:var(--text-muted);">🏆 {% trans "Tajriba" %}</span>
+              <span style="color:var(--text);font-weight:500;">{{ service.experience_years }} {% trans "yil" %}</span>
+            </div>
+            <div class="d-flex justify-content-between">
+              <span style="color:var(--text-muted);">💰 {% trans "Narx" %}</span>
+              <span style="color:var(--primary);font-weight:600;">
+                {% if service.price_from %}{{ service.price_from|floatformat:"0" }}–{{ service.price_to|floatformat:"0" }} so'm{% else %}—{% endif %}
+              </span>
+            </div>
+          </div>
+
+          <div class="divider"></div>
+          <div>
+            <p style="font-size:0.78rem;color:var(--text-muted);margin-bottom:0.5rem;font-weight:600;text-transform:uppercase;">{% trans "Mutaxassisliklar" %}</p>
+            <div class="spec-tags">
+              {% for spec in service.specializations %}
+                <span class="spec-tag" style="font-size:0.78rem;">
+                  {% for val, label in mutaxassisliklar %}{% if val == spec %}{{ label }}{% endif %}{% endfor %}
+                </span>
+              {% empty %}
+                <span style="color:var(--text-muted);font-size:0.85rem;">—</span>
+              {% endfor %}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Images -->
+      <div class="col-lg-6">
+        <div class="card-smart p-3">
+          <div class="section-header mb-3">
+            <span class="section-title">📷 {% trans "Rasmlar" %} ({{ image_count }}/6)</span>
+            <a href="{% url 'service_edit' %}#images" class="btn-outline-smart py-1 px-2" style="font-size:0.78rem;">+ {% trans "Qo'shish" %}</a>
+          </div>
+          <div class="image-upload-grid">
+            {% for img in images %}
+              <div class="image-slot">
+                <img src="{{ img.image.url }}" alt="Servis rasmi">
+                <button class="delete-btn" onclick="deleteServiceImage({{ img.id }}, this)" title="{% trans "O'chirish" %}">✕</button>
+              </div>
+            {% endfor %}
+            {% for i in "123456"|slice:image_count %}
+              <!-- already filled -->
+            {% endfor %}
+            {% if image_count < 6 %}
+              {% for i in "" %}{% endfor %}
+              <div class="image-slot" data-empty>
+                <div class="add-icon">
+                  <span>📷</span>
+                  <span>{% trans "Rasm yo'q" %}</span>
+                </div>
+              </div>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+
+      <!-- Recent Reviews -->
+      <div class="col-12">
+        <div class="card-smart p-3">
+          <div class="section-header mb-3">
+            <span class="section-title">💬 {% trans "So'nggi sharhlar" %}</span>
+            <a href="{% url 'service_detail' service.id %}#reviews" style="font-size:0.82rem;color:var(--primary);text-decoration:none;">{% trans "Hammasini ko'rish" %} →</a>
+          </div>
+
+          {% for review in reviews %}
+            <div class="review-card" style="margin-bottom:0.7rem;">
+              <div class="review-header">
+                <div style="display:flex;align-items:center;gap:0.6rem;">
+                  <div class="avatar" style="width:32px;height:32px;font-size:0.78rem;">{{ review.user.first_name|first }}</div>
+                  <div>
+                    <div class="reviewer-name">{{ review.user.get_full_name }}</div>
+                    <div style="color:#FF9F1C;font-size:0.8rem;">
+                      {% for i in "12345" %}{% if forloop.counter <= review.rating %}⭐{% endif %}{% endfor %}
+                    </div>
+                  </div>
+                </div>
+                <span class="review-date">{{ review.created_at|date:"d.m.Y" }}</span>
+              </div>
+              {% if review.comment %}
+                <p style="font-size:0.85rem;color:var(--text-muted);margin:0.4rem 0 0;">{{ review.comment|truncatechars:150 }}</p>
+              {% endif %}
+            </div>
+          {% empty %}
+            <div class="empty-state" style="padding:2rem;">
+              <div class="icon" style="font-size:2rem;">💬</div>
+              <p style="font-size:0.88rem;">{% trans "Hali sharh yo'q" %}</p>
+            </div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+{% endblock %}

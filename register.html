@@ -1,0 +1,154 @@
+{% load i18n static %}
+{% extends 'base.html' %}
+
+{% block title %}{% trans "Ro'yxatdan o'tish" %}{% endblock %}
+
+{% block content %}
+<div class="auth-container">
+  <div class="auth-bg-pattern"></div>
+  <div class="auth-card" style="max-width:580px;">
+    <div class="auth-logo">
+      <div style="font-size:2.5rem;margin-bottom:0.5rem;">🔧</div>
+      <h1>SmartAvtoServis</h1>
+      <p>{% trans "Yangi hisob yaratish" %}</p>
+    </div>
+
+    <!-- Role Selector -->
+    <div class="role-selector">
+      <div class="role-option {% if role == 'user' %}active{% endif %}" data-role="user">
+        <span class="icon">👤</span>
+        <span class="label">{% trans "Foydalanuvchi" %}</span>
+        <span class="desc">{% trans "Servis qidiraman" %}</span>
+      </div>
+      <div class="role-option {% if role == 'service' %}active{% endif %}" data-role="service">
+        <span class="icon">🔧</span>
+        <span class="label">{% trans "Servis egasi" %}</span>
+        <span class="desc">{% trans "Servisimni qo'shaman" %}</span>
+      </div>
+    </div>
+
+    <form method="post" action="{% url 'register' %}">
+      {% csrf_token %}
+      <input type="hidden" name="role" id="role-input" value="{{ role }}">
+
+      <!-- Common Fields -->
+      <div data-role="common" class="role-form-section">
+        {% if form.non_field_errors %}
+          <div class="alert-smart alert-error">
+            {% for error in form.non_field_errors %}{{ error }}{% endfor %}
+          </div>
+        {% endif %}
+
+        <div class="row g-3">
+          <div class="col-6 form-group">
+            <label class="form-label">{% trans "Ism" %} *</label>
+            <input type="text" name="first_name" class="form-control {% if form.first_name.errors %}is-invalid{% endif %}"
+                   placeholder="{% trans 'Ismingiz' %}" value="{{ form.first_name.value|default:'' }}" required>
+            {% if form.first_name.errors %}<div class="invalid-feedback">{{ form.first_name.errors.0 }}</div>{% endif %}
+          </div>
+          <div class="col-6 form-group">
+            <label class="form-label">{% trans "Familiya" %} *</label>
+            <input type="text" name="last_name" class="form-control {% if form.last_name.errors %}is-invalid{% endif %}"
+                   placeholder="{% trans 'Familiyangiz' %}" value="{{ form.last_name.value|default:'' }}" required>
+          </div>
+        </div>
+
+        <div class="row g-3">
+          <div class="col-6 form-group">
+            <label class="form-label">📧 Email</label>
+            <input type="email" name="email" class="form-control" placeholder="email@example.com"
+                   value="{{ form.email.value|default:'' }}">
+          </div>
+          <div class="col-6 form-group">
+            <label class="form-label">📱 {% trans "Telefon" %}</label>
+            <input type="tel" name="phone" class="form-control" placeholder="+998901234567"
+                   value="{{ form.phone.value|default:'' }}" id="phone-input">
+          </div>
+        </div>
+        <small class="text-muted-smart" style="font-size:0.78rem;">{% trans "Email yoki telefon kamida bittasi to'ldirilishi shart" %}</small>
+
+        <div class="row g-3 mt-0">
+          <div class="col-6 form-group">
+            <label class="form-label">🔑 {% trans "Parol" %} *</label>
+            <input type="password" name="password1" class="form-control" placeholder="{% trans 'Kamida 8 belgi' %}" required minlength="8">
+          </div>
+          <div class="col-6 form-group">
+            <label class="form-label">🔑 {% trans "Parol (qayta)" %} *</label>
+            <input type="password" name="password2" class="form-control" placeholder="{% trans 'Parolni tasdiqlang' %}" required>
+          </div>
+        </div>
+      </div>
+
+      <!-- Service-only Fields -->
+      <div data-role="service" class="role-form-section" {% if role != 'service' %}style="display:none;"{% endif %}>
+        <div class="divider"></div>
+        <p style="font-size:0.82rem;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:1rem;">
+          {% trans "Servis ma'lumotlari" %}
+        </p>
+
+        <div class="form-group">
+          <label class="form-label">🏪 {% trans "Servis nomi" %} *</label>
+          <input type="text" name="service_name" class="form-control" placeholder="{% trans 'Masalan: AutoMaster Servis' %}">
+        </div>
+
+        <div class="row g-3">
+          <div class="col-6 form-group">
+            <label class="form-label">📍 {% trans "Viloyat" %} *</label>
+            <select name="viloyat" class="form-select" id="viloyat-select">
+              <option value="">— {% trans "Tanlang" %} —</option>
+              {% for val, label in viloyatlar %}
+                <option value="{{ val }}">{{ label }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-6 form-group">
+            <label class="form-label">🏘 {% trans "Tuman" %} *</label>
+            <input type="text" name="tuman" class="form-control" placeholder="{% trans 'Tuman nomi' %}">
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">🗺 {% trans "Manzil" %} *</label>
+          <input type="text" name="address" class="form-control" placeholder="{% trans 'To\'liq manzil' %}">
+        </div>
+      </div>
+
+      <button type="submit" class="btn-primary-smart w-100 justify-content-center mt-3" style="padding:0.8rem;">
+        ✓ {% trans "Ro'yxatdan o'tish" %}
+      </button>
+    </form>
+
+    <p style="text-align:center;margin-top:1.2rem;font-size:0.88rem;color:var(--text-muted);">
+      {% trans "Hisobingiz bormi?" %}
+      <a href="{% url 'login' %}" style="color:var(--primary);font-weight:600;text-decoration:none;">{% trans "Kirish" %}</a>
+    </p>
+  </div>
+</div>
+
+<script>
+  // Show/hide service fields based on role
+  document.addEventListener('DOMContentLoaded', () => {
+    function updateRole(role) {
+      document.getElementById('role-input').value = role;
+      document.querySelectorAll('.role-option').forEach(o => {
+        o.classList.toggle('active', o.dataset.role === role);
+      });
+      const serviceSection = document.querySelector('.role-form-section[data-role="service"]');
+      if (serviceSection) {
+        serviceSection.style.display = role === 'service' ? 'block' : 'none';
+      }
+      // Phone required for service
+      const phoneInput = document.getElementById('phone-input');
+      if (phoneInput) {
+        phoneInput.required = role === 'service';
+      }
+    }
+
+    document.querySelectorAll('.role-option').forEach(option => {
+      option.addEventListener('click', () => updateRole(option.dataset.role));
+    });
+
+    updateRole('{{ role }}');
+  });
+</script>
+{% endblock %}

@@ -1,0 +1,260 @@
+{% load i18n static %}
+{% extends 'base.html' %}
+
+{% block title %}{% trans "Servislar" %}{% endblock %}
+
+{% block content %}
+<div class="container" style="padding:1.5rem 0;">
+  <div class="row g-4">
+
+    <!-- ─── Filter Sidebar ─────────────────────────── -->
+    <div class="col-lg-3 d-none d-lg-block">
+      <div class="filter-panel">
+        <div class="filter-title">⚙️ {% trans "Filter" %}</div>
+        <form id="filter-form" method="get">
+
+          <!-- Search -->
+          <div class="filter-group">
+            <label>🔍 {% trans "Qidirish" %}</label>
+            <input type="text" name="search" class="form-control" placeholder="{% trans 'Servis nomi...' %}"
+                   value="{{ search }}">
+          </div>
+
+          <!-- Viloyat -->
+          <div class="filter-group">
+            <label>📍 {% trans "Viloyat" %}</label>
+            <select name="viloyat" class="form-select" id="viloyat-select" onchange="loadTumans(this.value)">
+              <option value="">{% trans "Barcha viloyatlar" %}</option>
+              {% for val, label in viloyatlar %}
+                <option value="{{ val }}" {% if selected_viloyat == val %}selected{% endif %}>{{ label }}</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <!-- Tuman -->
+          <div class="filter-group">
+            <label>🏘 {% trans "Tuman" %}</label>
+            <select name="tuman" class="form-select" id="tuman-select">
+              <option value="">{% trans "Barcha tumanlar" %}</option>
+              {% if selected_tuman %}
+                <option value="{{ selected_tuman }}" selected>{{ selected_tuman }}</option>
+              {% endif %}
+            </select>
+          </div>
+
+          <!-- Specialization -->
+          <div class="filter-group">
+            <label>🔩 {% trans "Mutaxassislik" %}</label>
+            <select name="specialization" class="form-select">
+              <option value="">{% trans "Barchasi" %}</option>
+              {% for val, label in mutaxassisliklar %}
+                <option value="{{ val }}" {% if selected_spec == val %}selected{% endif %}>{{ label }}</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <!-- Sort -->
+          <div class="filter-group">
+            <label>📊 {% trans "Tartiblash" %}</label>
+            <select name="sort" class="form-select">
+              <option value="newest" {% if sort == 'newest' %}selected{% endif %}>{% trans "Yangiligi bo'yicha" %}</option>
+              <option value="rating" {% if sort == 'rating' %}selected{% endif %}>⭐ {% trans "Reyting bo'yicha" %}</option>
+              <option value="nearest" {% if sort == 'nearest' %}selected{% endif %}>📍 {% trans "Yaqinligi bo'yicha" %}</option>
+            </select>
+          </div>
+
+          {% if user_lat and user_lng %}
+            <input type="hidden" name="lat" value="{{ user_lat }}">
+            <input type="hidden" name="lng" value="{{ user_lng }}">
+          {% endif %}
+
+          <button type="submit" class="btn-primary-smart w-100 justify-content-center">
+            ✓ {% trans "Filter qilish" %}
+          </button>
+          <a href="{% url 'service_list' %}" class="btn-outline-smart w-100 justify-content-center mt-2" style="font-size:0.82rem;">
+            ✕ {% trans "Tozalash" %}
+          </a>
+        </form>
+
+        <div class="divider"></div>
+
+        <!-- Location Button -->
+        <button id="locate-me-btn" class="btn-outline-smart w-100 justify-content-center" style="font-size:0.85rem;">
+          📍 {% trans "Yaqin servislar" %}
+        </button>
+      </div>
+    </div>
+
+    <!-- ─── Service Cards ──────────────────────────── -->
+    <div class="col-lg-9">
+      <!-- Mobile filter toggle -->
+      <div class="d-flex align-items-center justify-content-between mb-3 d-lg-none">
+        <h2 class="section-title mb-0">{% trans "Servislar" %}</h2>
+        <button class="btn-outline-smart py-1 px-3" data-bs-toggle="offcanvas" data-bs-target="#filterOffcanvas">
+          ⚙️ {% trans "Filter" %}
+        </button>
+      </div>
+
+      <div class="d-flex align-items-center justify-content-between mb-3 d-none d-lg-flex">
+        <h2 class="section-title mb-0">
+          {% trans "Servislar" %}
+          <span style="font-size:0.85rem;font-weight:500;color:var(--text-muted);">({{ page.paginator.count }})</span>
+        </h2>
+        {% if sort == 'nearest' and user_lat %}
+          <span class="distance-badge">📍 {% trans "Yaqinligi bo'yicha tartiblangan" %}</span>
+        {% endif %}
+      </div>
+
+      {% if page.object_list %}
+        <div class="row g-3" id="services-grid">
+          {% for service in page.object_list %}
+          <div class="col-md-6 col-xl-4 fade-in-up stagger-{{ forloop.counter|divisibleby:3|yesno:"3,2,1" }}">
+            <div class="card-smart service-card">
+              <!-- Image -->
+              {% with service.images.first as img %}
+              {% if img %}
+                <img src="{{ img.image.url }}" alt="{{ service.name }}" class="service-card-img" loading="lazy">
+              {% else %}
+                <div class="service-card-img-placeholder">🔧</div>
+              {% endif %}
+              {% endwith %}
+
+              <!-- Body -->
+              <div class="service-card-body">
+                <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:0.5rem;">
+                  <h3 class="service-card-name">{{ service.name }}</h3>
+                  <button class="fav-btn {% if service.id in fav_ids %}active{% endif %}"
+                          onclick="toggleFavorite(this, {{ service.id }})"
+                          title="{% trans 'Sevimlilarga qo\'shish' %}">
+                    {% if service.id in fav_ids %}❤️{% else %}🤍{% endif %}
+                  </button>
+                </div>
+
+                <p class="service-card-address">
+                  📍 {{ service.get_viloyat_display }}{% if service.tuman %}, {{ service.tuman }}{% endif %}
+                </p>
+
+                <!-- Specs -->
+                <div class="spec-tags mb-2">
+                  {% for spec in service.specializations|slice:":3" %}
+                    {% with spec_key=spec %}
+                      <span class="spec-tag" style="font-size:0.72rem;">
+                        {% for val, label in mutaxassisliklar %}{% if val == spec %}{{ label }}{% endif %}{% endfor %}
+                      </span>
+                    {% endwith %}
+                  {% endfor %}
+                  {% if service.specializations|length > 3 %}
+                    <span class="spec-tag" style="font-size:0.72rem;background:var(--border);">+{{ service.specializations|length|add:"-3" }}</span>
+                  {% endif %}
+                </div>
+
+                <!-- Rating -->
+                <div class="rating-stars">
+                  {% with avg=service.avg_rating %}
+                  {% for i in "12345" %}
+                    {% if forloop.counter <= avg %}⭐{% else %}☆{% endif %}
+                  {% endfor %}
+                  <span class="count">({{ service.review_count }})</span>
+                  {% endwith %}
+                </div>
+
+                {% if service.distance %}
+                  <span class="distance-badge mt-1" style="display:inline-block;">📍 {{ service.distance }} km</span>
+                {% endif %}
+              </div>
+
+              <!-- Footer -->
+              <div class="service-card-footer">
+                <div>
+                  {% if service.price_from or service.price_to %}
+                    <div class="price-range">{{ service.price_from|floatformat:"0" }} — {{ service.price_to|floatformat:"0" }} so'm</div>
+                  {% else %}
+                    <div style="font-size:0.82rem;color:var(--text-muted);">{% trans "Narx kelishiladi" %}</div>
+                  {% endif %}
+                  {% if service.is_24h %}
+                    <span style="font-size:0.72rem;color:var(--success);font-weight:600;">⏰ 24/7</span>
+                  {% else %}
+                    <span style="font-size:0.72rem;color:var(--text-muted);">{{ service.work_start|time:"H:i" }}–{{ service.work_end|time:"H:i" }}</span>
+                  {% endif %}
+                </div>
+                <a href="{% url 'service_detail' service.id %}" class="btn-primary-smart py-1 px-3" style="font-size:0.8rem;">
+                  {% trans "Ko'rish" %} →
+                </a>
+              </div>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+
+        <!-- Pagination -->
+        {% if page.has_other_pages %}
+        <div class="pagination-smart">
+          {% if page.has_previous %}
+            <a href="?page={{ page.previous_page_number }}&{{ request.GET.urlencode }}" class="page-btn">‹</a>
+          {% endif %}
+          {% for num in page.paginator.page_range %}
+            {% if num >= page.number|add:"-2" and num <= page.number|add:"2" %}
+              <a href="?page={{ num }}&{{ request.GET.urlencode }}"
+                 class="page-btn {% if num == page.number %}active{% endif %}">{{ num }}</a>
+            {% endif %}
+          {% endfor %}
+          {% if page.has_next %}
+            <a href="?page={{ page.next_page_number }}&{{ request.GET.urlencode }}" class="page-btn">›</a>
+          {% endif %}
+        </div>
+        {% endif %}
+
+      {% else %}
+        <div class="empty-state">
+          <div class="icon">🔍</div>
+          <h3>{% trans "Servis topilmadi" %}</h3>
+          <p>{% trans "Filtrni o'zgartiring yoki boshqa kalit so'z kiriting" %}</p>
+          <a href="{% url 'service_list' %}" class="btn-outline-smart mt-3">{% trans "Hammasini ko'rish" %}</a>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<!-- Mobile Filter Offcanvas -->
+<div class="offcanvas offcanvas-start" id="filterOffcanvas" style="background:var(--bg-card);color:var(--text);max-width:300px;">
+  <div class="offcanvas-header">
+    <h5 class="offcanvas-title" style="color:var(--text);">⚙️ {% trans "Filter" %}</h5>
+    <button type="button" class="btn-close" data-bs-dismiss="offcanvas" style="filter:invert(1) opacity(0.5);"></button>
+  </div>
+  <div class="offcanvas-body">
+    <form method="get">
+      <div class="form-group">
+        <label class="form-label">🔍 {% trans "Qidirish" %}</label>
+        <input type="text" name="search" class="form-control" value="{{ search }}">
+      </div>
+      <div class="form-group">
+        <label class="form-label">📍 {% trans "Viloyat" %}</label>
+        <select name="viloyat" class="form-select">
+          <option value="">{% trans "Barchasi" %}</option>
+          {% for val, label in viloyatlar %}
+            <option value="{{ val }}" {% if selected_viloyat == val %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">🔩 {% trans "Mutaxassislik" %}</label>
+        <select name="specialization" class="form-select">
+          <option value="">{% trans "Barchasi" %}</option>
+          {% for val, label in mutaxassisliklar %}
+            <option value="{{ val }}" {% if selected_spec == val %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <button type="submit" class="btn-primary-smart w-100 justify-content-center">{% trans "Filter" %}</button>
+    </form>
+  </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  const v = document.getElementById('viloyat-select');
+  if (v && '{{ selected_viloyat }}') loadTumans('{{ selected_viloyat }}');
+});
+</script>
+{% endblock %}

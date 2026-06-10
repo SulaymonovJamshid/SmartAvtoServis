@@ -1,0 +1,163 @@
+{% load i18n static %}
+{% extends 'base.html' %}
+
+{% block title %}{% trans "Profil" %}{% endblock %}
+
+{% block content %}
+<div class="container" style="padding:2rem 0;max-width:900px;">
+  <h1 style="font-family:'Exo 2',sans-serif;font-weight:800;font-size:1.6rem;color:var(--text);margin-bottom:1.5rem;">
+    👤 {% trans "Mening profilim" %}
+  </h1>
+
+  <div class="row g-4">
+    <!-- Profile Form -->
+    <div class="col-lg-5">
+      <div class="card-smart p-3">
+        <h3 style="font-family:'Exo 2',sans-serif;font-weight:700;font-size:1rem;color:var(--text);margin-bottom:1.2rem;">
+          ⚙️ {% trans "Ma'lumotlar" %}
+        </h3>
+
+        <form method="post" enctype="multipart/form-data">
+          {% csrf_token %}
+
+          <!-- Avatar -->
+          <div style="text-align:center;margin-bottom:1.5rem;">
+            {% if request.user.avatar %}
+              <img src="{{ request.user.avatar.url }}" alt="Avatar"
+                   style="width:80px;height:80px;border-radius:50%;object-fit:cover;border:3px solid var(--primary);">
+            {% else %}
+              <div class="avatar" style="width:80px;height:80px;font-size:1.8rem;margin:0 auto;">
+                {{ request.user.first_name|first }}
+              </div>
+            {% endif %}
+            <div style="margin-top:0.6rem;">
+              <label class="btn-outline-smart py-1 px-3" style="font-size:0.8rem;cursor:pointer;">
+                📷 {% trans "Rasm o'zgartirish" %}
+                <input type="file" name="avatar" accept="image/*" style="display:none;" onchange="previewAvatar(this)">
+              </label>
+            </div>
+          </div>
+
+          <div class="row g-3">
+            <div class="col-6 form-group">
+              <label class="form-label">{% trans "Ism" %}</label>
+              {{ form.first_name }}
+            </div>
+            <div class="col-6 form-group">
+              <label class="form-label">{% trans "Familiya" %}</label>
+              {{ form.last_name }}
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">📧 Email</label>
+            {{ form.email }}
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">📱 {% trans "Telefon" %}</label>
+            {{ form.phone }}
+          </div>
+
+          <div class="row g-3">
+            <div class="col-6 form-group">
+              <label class="form-label">🌐 {% trans "Til" %}</label>
+              {{ form.preferred_language }}
+            </div>
+            <div class="col-6 form-group">
+              <label class="form-label">🎨 {% trans "Tema" %}</label>
+              {{ form.theme }}
+            </div>
+          </div>
+
+          <button type="submit" class="btn-primary-smart w-100 justify-content-center mt-2">
+            💾 {% trans "Saqlash" %}
+          </button>
+        </form>
+      </div>
+    </div>
+
+    <!-- Favorites & Reviews -->
+    <div class="col-lg-7">
+      <!-- Favorites -->
+      <div class="card-smart p-3 mb-3">
+        <div class="section-header mb-3">
+          <span class="section-title">❤️ {% trans "Sevimlilar" %} ({{ favorites.count }})</span>
+        </div>
+        {% for fav in favorites %}
+          <div style="display:flex;align-items:center;gap:0.8rem;padding:0.7rem 0;border-bottom:1px solid var(--border-light);">
+            {% with fav.service.images.first as img %}
+              {% if img %}
+                <img src="{{ img.image.url }}" alt="" style="width:50px;height:50px;border-radius:8px;object-fit:cover;">
+              {% else %}
+                <div style="width:50px;height:50px;background:var(--bg-secondary);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:1.3rem;">🔧</div>
+              {% endif %}
+            {% endwith %}
+            <div style="flex:1;">
+              <div style="font-weight:600;font-size:0.9rem;color:var(--text);">{{ fav.service.name }}</div>
+              <div style="font-size:0.78rem;color:var(--text-muted);">📍 {{ fav.service.get_viloyat_display }}</div>
+            </div>
+            <a href="{% url 'service_detail' fav.service.id %}" class="btn-outline-smart py-1 px-2" style="font-size:0.78rem;">{% trans "Ko'rish" %}</a>
+            <button onclick="toggleFavorite(this, {{ fav.service.id }})" class="fav-btn active">❤️</button>
+          </div>
+        {% empty %}
+          <div class="empty-state" style="padding:1.5rem;">
+            <div class="icon" style="font-size:2rem;">❤️</div>
+            <p style="font-size:0.85rem;">{% trans "Hali sevimli yo'q" %}</p>
+            <a href="{% url 'service_list' %}" class="btn-outline-smart mt-2" style="font-size:0.82rem;">{% trans "Servis qidirish" %}</a>
+          </div>
+        {% endfor %}
+      </div>
+
+      <!-- Reviews -->
+      <div class="card-smart p-3">
+        <div class="section-header mb-3">
+          <span class="section-title">💬 {% trans "Mening sharhlarim" %}</span>
+        </div>
+        {% for review in reviews %}
+          <div class="review-card mb-2">
+            <div class="review-header">
+              <div>
+                <a href="{% url 'service_detail' review.service.id %}" style="font-weight:600;font-size:0.88rem;color:var(--primary);text-decoration:none;">{{ review.service.name }}</a>
+                <div style="color:#FF9F1C;font-size:0.8rem;">
+                  {% for i in "12345" %}{% if forloop.counter <= review.rating %}⭐{% endif %}{% endfor %}
+                </div>
+              </div>
+              <span class="review-date">{{ review.created_at|date:"d.m.Y" }}</span>
+            </div>
+            {% if review.comment %}
+              <p style="font-size:0.85rem;color:var(--text-muted);margin:0.4rem 0 0;">{{ review.comment|truncatechars:120 }}</p>
+            {% endif %}
+          </div>
+        {% empty %}
+          <div class="empty-state" style="padding:1.5rem;">
+            <p style="font-size:0.85rem;">{% trans "Hali sharh yo'q" %}</p>
+          </div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+function previewAvatar(input) {
+  if (input.files && input.files[0]) {
+    const reader = new FileReader();
+    reader.onload = e => {
+      const avatarEl = document.querySelector('.avatar, [alt="Avatar"]');
+      if (avatarEl) {
+        if (avatarEl.tagName === 'IMG') {
+          avatarEl.src = e.target.result;
+        } else {
+          const img = document.createElement('img');
+          img.src = e.target.result;
+          img.style.cssText = 'width:80px;height:80px;border-radius:50%;object-fit:cover;border:3px solid var(--primary);';
+          avatarEl.replaceWith(img);
+        }
+      }
+    };
+    reader.readAsDataURL(input.files[0]);
+  }
+}
+</script>
+{% endblock %}
