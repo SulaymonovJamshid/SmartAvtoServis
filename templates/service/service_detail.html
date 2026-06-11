@@ -1,0 +1,263 @@
+{% load i18n static %}
+{% extends 'base.html' %}
+
+{% block title %}{{ service.name }}{% endblock %}
+
+{% block content %}
+<div class="container" style="padding:1.5rem 0;">
+  <div class="row g-4">
+
+    <!-- ─── Main Info ──────────────────────────────── -->
+    <div class="col-lg-8">
+      <!-- Image Slider -->
+      <div class="service-detail-hero mb-3">
+        {% if service.images.all %}
+          <div class="detail-images-slider" id="imageSlider">
+            {% for img in service.images.all %}
+              <img src="{{ img.image.url }}" alt="{{ service.name }}" class="detail-image">
+            {% endfor %}
+          </div>
+          {% if service.images.count > 1 %}
+          <div style="display:flex;justify-content:center;gap:0.5rem;margin-top:0.8rem;">
+            {% for img in service.images.all %}
+              <button onclick="scrollToImage({{ forloop.counter0 }})"
+                      style="width:8px;height:8px;border-radius:50%;border:none;background:{% if forloop.first %}var(--primary){% else %}var(--border){% endif %};cursor:pointer;padding:0;"
+                      class="slider-dot" data-index="{{ forloop.counter0 }}"></button>
+            {% endfor %}
+          </div>
+          {% endif %}
+        {% else %}
+          <div class="detail-image-placeholder">🔧</div>
+        {% endif %}
+      </div>
+
+      <!-- Description -->
+      <div class="service-info-card mb-3">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:1rem;">
+          <div>
+            <h1 style="font-family:'Exo 2',sans-serif;font-weight:800;font-size:1.6rem;color:var(--text);margin-bottom:0.3rem;">
+              {{ service.name }}
+            </h1>
+            <p style="color:var(--text-muted);font-size:0.9rem;">
+              📍 {{ service.get_viloyat_display }}{% if service.tuman %}, {{ service.tuman }}{% endif %} — {{ service.address }}
+            </p>
+          </div>
+          <div style="display:flex;flex-direction:column;align-items:flex-end;gap:0.5rem;">
+            <button class="fav-btn {% if is_fav %}active{% endif %}" onclick="toggleFavorite(this, {{ service.id }})"
+                    style="font-size:1.5rem;">
+              {% if is_fav %}❤️{% else %}🤍{% endif %}
+            </button>
+            <div class="rating-stars" style="font-size:1rem;">
+              {% with avg=service.avg_rating %}
+              {% for i in "12345" %}{% if forloop.counter <= avg %}⭐{% else %}☆{% endif %}{% endfor %}
+              <strong style="color:var(--text);margin-left:0.3rem;">{{ avg }}</strong>
+              <span class="count">({{ service.review_count }} {% trans "sharh" %})</span>
+              {% endwith %}
+            </div>
+          </div>
+        </div>
+
+        {% if service.description %}
+        <div class="divider"></div>
+        <p style="font-size:0.9rem;color:var(--text);line-height:1.7;">{{ service.description }}</p>
+        {% endif %}
+
+        <div class="service-meta-grid mt-3">
+          <div class="meta-item">
+            <span class="meta-label">⏰ {% trans "Ish vaqti" %}</span>
+            <span class="meta-value">
+              {% if service.is_24h %}
+                <span style="color:var(--success);">24/7</span>
+              {% else %}
+                {{ service.work_start|time:"H:i" }} – {{ service.work_end|time:"H:i" }}
+              {% endif %}
+            </span>
+          </div>
+          <div class="meta-item">
+            <span class="meta-label">📅 {% trans "Ish kunlari" %}</span>
+            <span class="meta-value">
+              {% if service.is_24h %}—
+              {% elif service.work_days %}
+                {{ service.work_days|join:", " }}
+              {% else %}—{% endif %}
+            </span>
+          </div>
+          <div class="meta-item">
+            <span class="meta-label">🏆 {% trans "Tajriba" %}</span>
+            <span class="meta-value">{{ service.experience_years }} {% trans "yil" %}</span>
+          </div>
+          <div class="meta-item">
+            <span class="meta-label">💰 {% trans "Narx" %}</span>
+            <span class="meta-value" style="color:var(--primary);">
+              {% if service.price_from or service.price_to %}
+                {{ service.price_from|floatformat:"0" }} — {{ service.price_to|floatformat:"0" }} so'm
+              {% else %}{% trans "Kelishiladi" %}{% endif %}
+            </span>
+          </div>
+        </div>
+
+        {% if service.price_description %}
+          <div class="divider"></div>
+          <p style="font-size:0.85rem;color:var(--text-muted);">{{ service.price_description }}</p>
+        {% endif %}
+      </div>
+
+      <!-- Specializations -->
+      <div class="service-info-card mb-3">
+        <div class="section-header mb-2">
+          <span class="section-title">🔩 {% trans "Mutaxassisliklar" %}</span>
+        </div>
+        <div class="spec-tags">
+          {% for spec in service.specializations %}
+            <span class="spec-tag" style="font-size:0.82rem;padding:0.3rem 0.8rem;">
+              {% for val, label in mutaxassisliklar.items %}{% if val == spec %}{{ label }}{% endif %}{% endfor %}
+            </span>
+          {% empty %}
+            <span style="color:var(--text-muted);font-size:0.88rem;">—</span>
+          {% endfor %}
+        </div>
+      </div>
+
+      <!-- Map -->
+      {% if service.latitude and service.longitude %}
+      <div class="service-info-card mb-3">
+        <div class="section-header mb-2">
+          <span class="section-title">🗺 {% trans "Joylashuv" %}</span>
+        </div>
+        <div id="map-container"></div>
+      </div>
+      {% endif %}
+
+      <!-- Reviews -->
+      <div class="service-info-card">
+        <div class="section-header mb-3">
+          <span class="section-title">💬 {% trans "Sharhlar" %} ({{ service.review_count }})</span>
+        </div>
+
+        <!-- Leave Review (users only) -->
+        {% if request.user.role == 'user' %}
+        <div style="background:var(--bg-secondary);border-radius:var(--radius-sm);padding:1.2rem;margin-bottom:1.5rem;">
+          <p style="font-weight:600;font-size:0.9rem;color:var(--text);margin-bottom:0.8rem;">
+            {% if user_review %}✏️ {% trans "Sharhni tahrirlash" %}{% else %}📝 {% trans "Sharh qoldirish" %}{% endif %}
+          </p>
+          <form method="post">
+            {% csrf_token %}
+            <div class="star-rating-input mb-2" style="font-size:1.6rem;">
+              {% for i in "12345" %}
+                <span class="star {% if user_review and forloop.counter <= user_review.rating %}active{% endif %}"
+                      data-val="{{ forloop.counter }}">★</span>
+              {% endfor %}
+            </div>
+            <input type="hidden" name="rating" id="rating-input" value="{{ user_review.rating|default:'' }}">
+            <textarea name="comment" class="form-control mb-2" rows="3"
+                      placeholder="{% trans 'Izohingizni yozing...' %}">{{ user_review.comment|default:'' }}</textarea>
+            <button type="submit" class="btn-primary-smart">✓ {% trans "Yuborish" %}</button>
+          </form>
+        </div>
+        {% endif %}
+
+        {% for review in reviews %}
+        <div class="review-card">
+          <div class="review-header">
+            <div style="display:flex;align-items:center;gap:0.7rem;">
+              <div class="avatar" style="width:36px;height:36px;font-size:0.8rem;">{{ review.user.first_name|first }}</div>
+              <div>
+                <div class="reviewer-name">{{ review.user.get_full_name }}</div>
+                <div style="color:#FF9F1C;font-size:0.85rem;">
+                  {% for i in "12345" %}{% if forloop.counter <= review.rating %}⭐{% endif %}{% endfor %}
+                </div>
+              </div>
+            </div>
+            <span class="review-date">{{ review.created_at|date:"d.m.Y" }}</span>
+          </div>
+          {% if review.comment %}
+            <p style="font-size:0.88rem;color:var(--text);line-height:1.6;margin:0;">{{ review.comment }}</p>
+          {% endif %}
+        </div>
+        {% empty %}
+          <div class="empty-state" style="padding:2rem;">
+            <div class="icon" style="font-size:2rem;">💬</div>
+            <h3 style="font-size:1rem;">{% trans "Hali sharh yo'q" %}</h3>
+            <p style="font-size:0.82rem;">{% trans "Birinchi bo'lib sharh qoldiring!" %}</p>
+          </div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <!-- ─── Sidebar ────────────────────────────────── -->
+    <div class="col-lg-4">
+      <div class="service-info-card mb-3" style="position:sticky;top:85px;">
+        <h3 style="font-family:'Exo 2',sans-serif;font-weight:700;font-size:1rem;margin-bottom:1.2rem;color:var(--text);">
+          📞 {% trans "Aloqa" %}
+        </h3>
+
+        {% if service.phone %}
+          <a href="tel:{{ service.phone }}" class="btn-primary-smart w-100 justify-content-center mb-2">
+            📞 {{ service.phone }}
+          </a>
+        {% endif %}
+
+        {% if service.telegram %}
+          <a href="https://t.me/{{ service.telegram }}" target="_blank"
+             class="btn-outline-smart w-100 justify-content-center mb-2" style="font-size:0.88rem;">
+            ✈️ Telegram: @{{ service.telegram }}
+          </a>
+        {% endif %}
+
+        {% if service.website %}
+          <a href="{{ service.website }}" target="_blank"
+             class="btn-outline-smart w-100 justify-content-center mb-2" style="font-size:0.88rem;">
+            🌐 {% trans "Veb-sayt" %}
+          </a>
+        {% endif %}
+
+        <div class="divider"></div>
+
+        <div style="font-size:0.82rem;color:var(--text-muted);">
+          <div class="d-flex justify-content-between py-1">
+            <span>📍 {% trans "Viloyat" %}:</span>
+            <strong style="color:var(--text);">{{ service.get_viloyat_display }}</strong>
+          </div>
+          {% if service.tuman %}
+          <div class="d-flex justify-content-between py-1">
+            <span>🏘 {% trans "Tuman" %}:</span>
+            <strong style="color:var(--text);">{{ service.tuman }}</strong>
+          </div>
+          {% endif %}
+          <div class="d-flex justify-content-between py-1">
+            <span>📅 {% trans "Qo'shildi" %}:</span>
+            <strong style="color:var(--text);">{{ service.created_at|date:"M Y" }}</strong>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+{% if service.latitude and service.longitude %}
+document.addEventListener('DOMContentLoaded', () => {
+  initMap({{ service.latitude }}, {{ service.longitude }}, [{
+    id: {{ service.id }},
+    name: '{{ service.name|escapejs }}',
+    address: '{{ service.address|escapejs }}',
+    rating: {{ service.avg_rating }},
+    distance: 0,
+    lat: {{ service.latitude }},
+    lng: {{ service.longitude }}
+  }]);
+});
+{% endif %}
+
+// Image slider dots
+function scrollToImage(idx) {
+  const slider = document.getElementById('imageSlider');
+  if (!slider) return;
+  const img = slider.children[idx];
+  if (img) img.scrollIntoView({ behavior: 'smooth', inline: 'start', block: 'nearest' });
+  document.querySelectorAll('.slider-dot').forEach((d, i) => {
+    d.style.background = i === idx ? 'var(--primary)' : 'var(--border)';
+  });
+}
+</script>
+{% endblock %}

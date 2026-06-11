@@ -1,0 +1,377 @@
+{% load i18n static %}
+{% extends 'base.html' %}
+
+{% block title %}{% trans "Servisni tahrirlash" %}{% endblock %}
+
+{% block content %}
+<div class="dashboard-container">
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div style="padding:0.5rem 1rem 1.5rem;">
+      <div style="font-weight:700;color:var(--text);font-size:0.9rem;">{{ request.user.get_full_name }}</div>
+      <div style="font-size:0.75rem;color:var(--text-muted);">{% trans "Servis egasi" %}</div>
+    </div>
+    <ul class="sidebar-menu">
+      <li><a href="{% url 'service_dashboard' %}"><span class="icon">📊</span> {% trans "Dashboard" %}</a></li>
+      <li><a href="{% url 'service_edit' %}" class="active"><span class="icon">✏️</span> {% trans "Tahrirlash" %}</a></li>
+      <li><a href="{% url 'service_detail' service.id %}"><span class="icon">👁</span> {% trans "Ko'rish" %}</a></li>
+      <li><a href="{% url 'user_profile' %}"><span class="icon">👤</span> {% trans "Profil" %}</a></li>
+    </ul>
+  </aside>
+
+  <main class="main-content">
+    <div class="section-header mb-4">
+      <h1 style="font-family:'Exo 2',sans-serif;font-weight:800;font-size:1.5rem;color:var(--text);">
+        ✏️ {% trans "Servisni tahrirlash" %}
+      </h1>
+      <a href="{% url 'service_dashboard' %}" class="btn-outline-smart py-1 px-3" style="font-size:0.85rem;">← {% trans "Orqaga" %}</a>
+    </div>
+
+    <form method="post" enctype="multipart/form-data" id="service-edit-form">
+      {% csrf_token %}
+
+      {% if form.non_field_errors %}
+        <div class="alert-smart alert-error mb-3">{{ form.non_field_errors }}</div>
+      {% endif %}
+
+      <div class="row g-4">
+
+        <!-- ─── Asosiy ma'lumotlar ──────────────────── -->
+        <div class="col-12">
+          <div class="card-smart p-3">
+            <h3 style="font-family:'Exo 2',sans-serif;font-weight:700;font-size:1rem;color:var(--text);margin-bottom:1.2rem;">
+              🏪 {% trans "Asosiy ma'lumotlar" %}
+            </h3>
+            <div class="row g-3">
+              <div class="col-md-8">
+                <div class="form-group">
+                  <label class="form-label">{% trans "Servis nomi" %} *</label>
+                  {{ form.name }}
+                  {% if form.name.errors %}<div style="color:var(--danger);font-size:0.8rem;">{{ form.name.errors.0 }}</div>{% endif %}
+                </div>
+              </div>
+              <div class="col-md-4">
+                <div class="form-group">
+                  <label class="form-label">{% trans "Tajriba (yil)" %}</label>
+                  {{ form.experience_years }}
+                </div>
+              </div>
+              <div class="col-12">
+                <div class="form-group">
+                  <label class="form-label">{% trans "Tavsif" %}</label>
+                  {{ form.description }}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ─── Mutaxassisliklar ────────────────────── -->
+        <div class="col-12">
+          <div class="card-smart p-3">
+            <h3 style="font-family:'Exo 2',sans-serif;font-weight:700;font-size:1rem;color:var(--text);margin-bottom:1rem;">
+              🔩 {% trans "Mutaxassisliklar" %}
+            </h3>
+            <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:0.6rem;">
+              {% for val, label in mutaxassisliklar %}
+                <label style="display:flex;align-items:center;gap:0.5rem;cursor:pointer;padding:0.5rem 0.7rem;border:1.5px solid var(--border);border-radius:8px;transition:all 0.2s;font-size:0.85rem;color:var(--text);"
+                       class="spec-checkbox-label" data-val="{{ val }}">
+                  <input type="checkbox" name="specializations" value="{{ val }}"
+                         {% if val in service.specializations %}checked{% endif %}
+                         style="width:16px;height:16px;accent-color:var(--primary);">
+                  {{ label }}
+                </label>
+              {% endfor %}
+            </div>
+          </div>
+        </div>
+
+        <!-- ─── Manzil ──────────────────────────────── -->
+        <div class="col-12">
+          <div class="card-smart p-3">
+            <h3 style="font-family:'Exo 2',sans-serif;font-weight:700;font-size:1rem;color:var(--text);margin-bottom:1.2rem;">
+              📍 {% trans "Manzil va joylashuv" %}
+            </h3>
+            <div class="row g-3">
+              <div class="col-md-4">
+                <div class="form-group">
+                  <label class="form-label">{% trans "Viloyat" %} *</label>
+                  {{ form.viloyat }}
+                </div>
+              </div>
+              <div class="col-md-4">
+                <div class="form-group">
+                  <label class="form-label">{% trans "Tuman" %} *</label>
+                  {{ form.tuman }}
+                </div>
+              </div>
+              <div class="col-md-4">
+                <div class="form-group">
+                  <label class="form-label">{% trans "Shahar/mahalla" %}</label>
+                  {{ form.shahar }}
+                </div>
+              </div>
+              <div class="col-12">
+                <div class="form-group">
+                  <label class="form-label">{% trans "To'liq manzil" %} *</label>
+                  {{ form.address }}
+                </div>
+              </div>
+            </div>
+
+            <!-- Map picker -->
+            <div style="margin-top:1rem;">
+              <label class="form-label">🗺 {% trans "Xaritadan joyni belgilang" %}</label>
+              <button type="button" class="btn-outline-smart mb-2" onclick="pickLocation()" id="pick-loc-btn" style="font-size:0.85rem;">
+                📍 {% trans "GPS orqali aniqlash" %}
+              </button>
+              <div id="map-picker" style="height:300px;border-radius:var(--radius-sm);border:1px solid var(--border);overflow:hidden;"></div>
+              {{ form.latitude }}
+              {{ form.longitude }}
+              <small style="color:var(--text-muted);font-size:0.78rem;">{% trans "Xaritada click qilib aniq joyni belgilang" %}</small>
+            </div>
+          </div>
+        </div>
+
+        <!-- ─── Ish vaqti ───────────────────────────── -->
+        <div class="col-md-6">
+          <div class="card-smart p-3 h-100">
+            <h3 style="font-family:'Exo 2',sans-serif;font-weight:700;font-size:1rem;color:var(--text);margin-bottom:1.2rem;">
+              ⏰ {% trans "Ish vaqti" %}
+            </h3>
+            <div class="form-group">
+              <label style="display:flex;align-items:center;gap:0.5rem;cursor:pointer;font-size:0.9rem;color:var(--text);">
+                {{ form.is_24h }}
+                <span>{% trans "24/7 ishlaydi" %}</span>
+              </label>
+            </div>
+            <div class="row g-3" id="work-time-inputs">
+              <div class="col-6">
+                <div class="form-group">
+                  <label class="form-label">{% trans "Boshlanish" %}</label>
+                  {{ form.work_start }}
+                </div>
+              </div>
+              <div class="col-6">
+                <div class="form-group">
+                  <label class="form-label">{% trans "Tugash" %}</label>
+                  {{ form.work_end }}
+                </div>
+              </div>
+            </div>
+            <div class="form-group">
+              <label class="form-label">{% trans "Ish kunlari" %}</label>
+              <div style="display:flex;flex-wrap:wrap;gap:0.5rem;">
+                {% for day_val, day_label in form.fields.work_days.choices %}
+                  <label style="display:flex;align-items:center;gap:0.3rem;cursor:pointer;font-size:0.82rem;
+                                 padding:0.3rem 0.7rem;border:1.5px solid var(--border);border-radius:20px;">
+                    <input type="checkbox" name="work_days" value="{{ day_val }}"
+                           {% if day_val in service.work_days %}checked{% endif %}
+                           style="accent-color:var(--primary);">
+                    {{ day_label }}
+                  </label>
+                {% endfor %}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ─── Narxlar ─────────────────────────────── -->
+        <div class="col-md-6">
+          <div class="card-smart p-3 h-100">
+            <h3 style="font-family:'Exo 2',sans-serif;font-weight:700;font-size:1rem;color:var(--text);margin-bottom:1.2rem;">
+              💰 {% trans "Narxlar" %}
+            </h3>
+            <div class="row g-3">
+              <div class="col-6">
+                <div class="form-group">
+                  <label class="form-label">{% trans "Narx (dan)" %}</label>
+                  {{ form.price_from }}
+                </div>
+              </div>
+              <div class="col-6">
+                <div class="form-group">
+                  <label class="form-label">{% trans "Narx (gacha)" %}</label>
+                  {{ form.price_to }}
+                </div>
+              </div>
+              <div class="col-12">
+                <div class="form-group">
+                  <label class="form-label">{% trans "Narxlar tavsifi" %}</label>
+                  {{ form.price_description }}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ─── Aloqa ───────────────────────────────── -->
+        <div class="col-12">
+          <div class="card-smart p-3">
+            <h3 style="font-family:'Exo 2',sans-serif;font-weight:700;font-size:1rem;color:var(--text);margin-bottom:1.2rem;">
+              📞 {% trans "Aloqa ma'lumotlari" %}
+            </h3>
+            <div class="row g-3">
+              <div class="col-md-4">
+                <div class="form-group">
+                  <label class="form-label">📞 {% trans "Telefon" %} *</label>
+                  {{ form.phone }}
+                </div>
+              </div>
+              <div class="col-md-4">
+                <div class="form-group">
+                  <label class="form-label">✈️ Telegram</label>
+                  {{ form.telegram }}
+                </div>
+              </div>
+              <div class="col-md-4">
+                <div class="form-group">
+                  <label class="form-label">🌐 {% trans "Veb-sayt" %}</label>
+                  {{ form.website }}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ─── Rasmlar ─────────────────────────────── -->
+        <div class="col-12" id="images">
+          <div class="card-smart p-3">
+            <h3 style="font-family:'Exo 2',sans-serif;font-weight:700;font-size:1rem;color:var(--text);margin-bottom:0.5rem;">
+              📷 {% trans "Rasmlar" %}
+              <span style="font-size:0.8rem;font-weight:400;color:var(--text-muted);">({% trans "maksimal 6 ta" %})</span>
+            </h3>
+            <p style="font-size:0.82rem;color:var(--text-muted);margin-bottom:1rem;">
+              {% trans "JPG, PNG, WEBP — har biri maksimal 5MB" %}
+            </p>
+
+            <!-- Existing images -->
+            {% if images %}
+            <div style="margin-bottom:1rem;">
+              <p style="font-size:0.82rem;font-weight:600;color:var(--text-muted);margin-bottom:0.6rem;">{% trans "Mavjud rasmlar" %}:</p>
+              <div class="image-upload-grid">
+                {% for img in images %}
+                  <div class="image-slot" id="slot-{{ img.id }}">
+                    <img src="{{ img.image.url }}" alt="Rasm {{ forloop.counter }}">
+                    <button type="button" class="delete-btn" onclick="deleteServiceImage({{ img.id }}, this)" title="{% trans "O'chirish" %}">✕</button>
+                  </div>
+                {% endfor %}
+              </div>
+            </div>
+            {% endif %}
+
+            <!-- New images upload -->
+            {% if images.count < 6 %}
+            <div>
+              <p style="font-size:0.82rem;font-weight:600;color:var(--text-muted);margin-bottom:0.6rem;">{% trans "Yangi rasm qo'shish" %}:</p>
+              <label style="display:flex;align-items:center;gap:0.7rem;padding:1rem;border:2px dashed var(--border);border-radius:var(--radius-sm);cursor:pointer;transition:all 0.2s;"
+                     id="upload-label" onmouseover="this.style.borderColor='var(--primary)'" onmouseout="this.style.borderColor='var(--border)'">
+                <span style="font-size:1.5rem;">📤</span>
+                <span style="color:var(--text-muted);font-size:0.88rem;">{% trans "Rasmlarni tanlash yoki bu yerga tashlash" %}</span>
+                <input type="file" name="images" multiple accept="image/*" id="image-file-input"
+                       style="display:none;" onchange="previewImages(this)">
+              </label>
+              <div id="preview-grid" class="image-upload-grid mt-2" style="display:none;"></div>
+            </div>
+            {% else %}
+            <div class="alert-smart alert-info">ℹ️ {% trans "Maksimal 6 ta rasm yuklangan. Yangi qo'shish uchun eski rasmni o'chiring." %}</div>
+            {% endif %}
+          </div>
+        </div>
+
+        <!-- Submit -->
+        <div class="col-12">
+          <div style="display:flex;gap:1rem;justify-content:flex-end;">
+            <a href="{% url 'service_dashboard' %}" class="btn-outline-smart">{% trans "Bekor qilish" %}</a>
+            <button type="submit" class="btn-primary-smart" style="padding:0.75rem 2rem;">
+              💾 {% trans "Saqlash" %}
+            </button>
+          </div>
+        </div>
+      </div>
+    </form>
+  </main>
+</div>
+
+<script>
+// Map Picker
+let mapPicker, markerPicker;
+document.addEventListener('DOMContentLoaded', () => {
+  if (window.L) {
+    const lat = parseFloat(document.querySelector('[name=latitude]')?.value) || 41.2995;
+    const lng = parseFloat(document.querySelector('[name=longitude]')?.value) || 69.2401;
+
+    mapPicker = L.map('map-picker').setView([lat, lng], 13);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(mapPicker);
+
+    if (document.querySelector('[name=latitude]')?.value) {
+      markerPicker = L.marker([lat, lng]).addTo(mapPicker);
+    }
+
+    mapPicker.on('click', function(e) {
+      const { lat, lng } = e.latlng;
+      document.querySelector('[name=latitude]').value = lat.toFixed(7);
+      document.querySelector('[name=longitude]').value = lng.toFixed(7);
+      if (markerPicker) markerPicker.remove();
+      markerPicker = L.marker([lat, lng]).addTo(mapPicker);
+      showToast('📍 Joylashuv belgilandi!', 'success');
+    });
+  }
+
+  // Spec checkbox styling
+  document.querySelectorAll('.spec-checkbox-label input').forEach(inp => {
+    const updateStyle = () => {
+      const label = inp.closest('.spec-checkbox-label');
+      label.style.borderColor = inp.checked ? 'var(--primary)' : 'var(--border)';
+      label.style.background = inp.checked ? 'rgba(232,64,64,0.06)' : 'transparent';
+      label.style.color = inp.checked ? 'var(--primary)' : 'var(--text)';
+    };
+    updateStyle();
+    inp.addEventListener('change', updateStyle);
+  });
+
+  // 24h toggle
+  const toggle24h = document.querySelector('[name=is_24h]');
+  const timeInputs = document.getElementById('work-time-inputs');
+  const updateTimeVis = () => {
+    if (timeInputs) timeInputs.style.opacity = toggle24h?.checked ? '0.4' : '1';
+  };
+  toggle24h?.addEventListener('change', updateTimeVis);
+  updateTimeVis();
+});
+
+function pickLocation() {
+  const btn = document.getElementById('pick-loc-btn');
+  btn.innerHTML = '<span class="spinner"></span> {% trans "Aniqlanmoqda..." %}';
+  navigator.geolocation.getCurrentPosition(pos => {
+    const { latitude: lat, longitude: lng } = pos.coords;
+    document.querySelector('[name=latitude]').value = lat.toFixed(7);
+    document.querySelector('[name=longitude]').value = lng.toFixed(7);
+    mapPicker.setView([lat, lng], 16);
+    if (markerPicker) markerPicker.remove();
+    markerPicker = L.marker([lat, lng]).addTo(mapPicker);
+    btn.innerHTML = '✓ {% trans "Joylashuv aniqlandi" %}';
+    showToast('📍 GPS orqali aniqlandi!', 'success');
+  }, () => {
+    btn.innerHTML = '📍 {% trans "GPS orqali aniqlash" %}';
+    showToast('{% trans "Joylashuvni aniqlab bo\'lmadi" %}', 'error');
+  });
+}
+
+function previewImages(input) {
+  const grid = document.getElementById('preview-grid');
+  grid.style.display = 'grid';
+  grid.innerHTML = '';
+  Array.from(input.files).forEach(file => {
+    const reader = new FileReader();
+    reader.onload = e => {
+      const slot = document.createElement('div');
+      slot.className = 'image-slot';
+      slot.innerHTML = `<img src="${e.target.result}" alt="Preview">`;
+      grid.appendChild(slot);
+    };
+    reader.readAsDataURL(file);
+  });
+}
+</script>
+{% endblock %}

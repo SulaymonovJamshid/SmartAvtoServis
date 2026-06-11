@@ -1,0 +1,60 @@
+{% load i18n static %}
+{% extends 'base.html' %}
+
+{% block title %}{% trans "Kirish" %}{% endblock %}
+
+{% block content %}
+<div class="auth-container">
+  <div class="auth-bg-pattern"></div>
+  <div class="auth-card" style="max-width:440px;">
+    <div class="auth-logo">
+      <div style="font-size:2.5rem;margin-bottom:0.5rem;">🔧</div>
+      <h1>SmartAvtoServis</h1>
+      <p>{% trans "Hisobingizga kiring" %}</p>
+    </div>
+
+    {% if form.non_field_errors or messages %}
+      <div class="alert-smart alert-error">
+        ✕ {% for e in form.non_field_errors %}{{ e }}{% endfor %}
+        {% for m in messages %}{{ m }}{% endfor %}
+      </div>
+    {% endif %}
+
+    <form method="post">
+      {% csrf_token %}
+      <div class="form-group">
+        <label class="form-label">📧 {% trans "Email yoki telefon" %}</label>
+        <input type="text" name="identifier" class="form-control {% if form.identifier.errors %}is-invalid{% endif %}"
+               placeholder="{% trans 'email@example.com yoki +998...' %}"
+               value="{{ form.identifier.value|default:'' }}" autofocus required>
+      </div>
+      <div class="form-group">
+        <label class="form-label">🔑 {% trans "Parol" %}</label>
+        <div style="position:relative;">
+          <input type="password" name="password" class="form-control" id="passwordInput"
+                 placeholder="{% trans 'Parolingiz' %}" required>
+          <button type="button" onclick="togglePwd()" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--text-muted);font-size:1rem;" title="{% trans 'Ko\'rsatish' %}">
+            👁
+          </button>
+        </div>
+      </div>
+
+      <button type="submit" class="btn-primary-smart w-100 justify-content-center mt-2" style="padding:0.8rem;">
+        → {% trans "Kirish" %}
+      </button>
+    </form>
+
+    <p style="text-align:center;margin-top:1.2rem;font-size:0.88rem;color:var(--text-muted);">
+      {% trans "Hisobingiz yo'qmi?" %}
+      <a href="{% url 'register' %}" style="color:var(--primary);font-weight:600;text-decoration:none;">{% trans "Ro'yxatdan o'ting" %}</a>
+    </p>
+  </div>
+</div>
+
+<script>
+function togglePwd() {
+  const inp = document.getElementById('passwordInput');
+  inp.type = inp.type === 'password' ? 'text' : 'password';
+}
+</script>
+{% endblock %}
